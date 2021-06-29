@@ -340,5 +340,5 @@ def test_keep_original_filenames_and_filenames_case(mocker):
         "input/UNKNOWN.jpg"
     )
     assert os.path.isfile("output/2017/10/06/UNKNOWN.jpg")
-    assert not "unknown.jpg" in os.listdir("output/2017/10/06")
+    assert "unknown.jpg" not in os.listdir("output/2017/10/06")
     shutil.rmtree("output", ignore_errors=True)
