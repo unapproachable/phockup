@@ -19,12 +19,11 @@ The software will collect all files from the input directory and copy them to th
 changing the files content. It will only rename the files and place them in the proper directory for year, month and day.
 """
 
-DEFAULT_DIR_FORMAT = ['%Y', '%m', '%d']
+DEFAULT_DIR_FORMAT = ["%Y", "%m", "%d"]
 
 
 def main():
     check_dependencies()
-
 
     parser = argparse.ArgumentParser(
         description=PROGRAM_DESCRIPTION,
@@ -185,13 +184,13 @@ To get all date fields available for a file, do:
         date_field=args.date_field,
         dry_run=args.dry_run,
         quiet=args.quiet,
-        max_depth=args.maxdepth
+        max_depth=args.maxdepth,
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        printer.empty().line('Exiting...')
+        printer.empty().line("Exiting...")
         sys.exit(0)

@@ -13,7 +13,7 @@ printer = Printer()
 ignored_files = (".DS_Store", "Thumbs.db")
 
 
-class Phockup():
+class Phockup:
     def __init__(self, input_dir, output_dir, **args):
         input_dir = os.path.expanduser(input_dir)
         output_dir = os.path.expanduser(output_dir)
@@ -25,17 +25,21 @@ class Phockup():
 
         self.input_dir = input_dir
         self.output_dir = output_dir
-        self.dir_format = args.get('dir_format') or os.path.sep.join(['%Y', '%m', '%d'])
-        self.move = args.get('move', False)
-        self.link = args.get('link', False)
-        self.original_filenames = args.get('original_filenames', False)
-        self.date_regex = args.get('date_regex', None)
-        self.timestamp = args.get('timestamp', False)
-        self.date_field = args.get('date_field', False)
-        self.dry_run = args.get('dry_run', False)
-        self.max_depth = args.get('max_depth', 0)
-        self.stop_depth = self.input_dir.count(os.sep) + self.max_depth if self.max_depth else sys.maxsize
-        self.quiet = args.get('quiet', False)
+        self.dir_format = args.get("dir_format") or os.path.sep.join(["%Y", "%m", "%d"])
+        self.move = args.get("move", False)
+        self.link = args.get("link", False)
+        self.original_filenames = args.get("original_filenames", False)
+        self.date_regex = args.get("date_regex", None)
+        self.timestamp = args.get("timestamp", False)
+        self.date_field = args.get("date_field", False)
+        self.dry_run = args.get("dry_run", False)
+        self.max_depth = args.get("max_depth", 0)
+        self.stop_depth = (
+            self.input_dir.count(os.sep) + self.max_depth
+            if self.max_depth
+            else sys.maxsize
+        )
+        self.quiet = args.get("quiet", False)
 
         printer.should_print(self.quiet)
 
@@ -49,15 +53,20 @@ class Phockup():
         If output does not exists it tries to create it or exit with error
         """
         if not os.path.isdir(self.input_dir) or not os.path.exists(self.input_dir):
-            printer.error('Input directory "%s" does not exist or cannot be accessed' % self.input_dir)
+            printer.error(
+                'Input directory "%s" does not exist or cannot be accessed'
+                % self.input_dir
+            )
             return
         if not os.path.exists(self.output_dir):
-            printer.line('Output directory "%s" does not exist, creating now' % self.output_dir)
+            printer.line(
+                'Output directory "%s" does not exist, creating now' % self.output_dir
+            )
             try:
                 if not self.dry_run:
                     os.makedirs(self.output_dir)
             except Exception:
-                printer.error('Cannot create output directory. No write access!')
+                printer.error("Cannot create output directory. No write access!")
 
     def walk_directory(self):
         """
@@ -81,8 +90,8 @@ class Phockup():
         """
         block_size = 65536
         sha256 = hashlib.sha256()
-        with open(filename, 'rb') as f:
-            for block in iter(lambda: f.read(block_size), b''):
+        with open(filename, "rb") as f:
+            for block in iter(lambda: f.read(block_size), b""):
                 sha256.update(block)
         return sha256.hexdigest()
 
@@ -90,7 +99,7 @@ class Phockup():
         """
         Use mimetype to determine if the file is an image or video
         """
-        pattern = re.compile('^(image/.+|video/.+|application/vnd.adobe.photoshop)$')
+        pattern = re.compile("^(image/.+|video/.+|application/vnd.adobe.photoshop)$")
         if pattern.match(mimetype):
             return True
         return False
@@ -102,9 +111,9 @@ class Phockup():
         unless user included a regex from filename or uses timestamp
         """
         try:
-            path = [self.output_dir, date['date'].date().strftime(self.dir_format)]
+            path = [self.output_dir, date["date"].date().strftime(self.dir_format)]
         except:
-            path = [self.output_dir, 'unknown']
+            path = [self.output_dir, "unknown"]
 
         fullpath = os.path.sep.join(path)
 
@@ -123,19 +132,19 @@ class Phockup():
 
         try:
             filename = [
-                '%04d' % date['date'].year,
-                '%02d' % date['date'].month,
-                '%02d' % date['date'].day,
-                '-',
-                '%02d' % date['date'].hour,
-                '%02d' % date['date'].minute,
-                '%02d' % date['date'].second,
+                "%04d" % date["date"].year,
+                "%02d" % date["date"].month,
+                "%02d" % date["date"].day,
+                "-",
+                "%02d" % date["date"].hour,
+                "%02d" % date["date"].minute,
+                "%02d" % date["date"].second,
             ]
 
-            if date['subseconds']:
-                filename.append(date['subseconds'])
+            if date["subseconds"]:
+                filename.append(date["subseconds"])
 
-            return ''.join(filename) + os.path.splitext(original_filename)[1]
+            return "".join(filename) + os.path.splitext(original_filename)[1]
         except:
             return os.path.basename(original_filename)
 
@@ -144,12 +153,14 @@ class Phockup():
         Process the file using the selected strategy
         If file is .xmp skip it so process_xmp method can handle it
         """
-        if str.endswith(filename, '.xmp'):
+        if str.endswith(filename, ".xmp"):
             return None
 
         printer.line(filename, True)
 
-        output, target_file_name, target_file_path = self.get_file_name_and_path(filename)
+        output, target_file_name, target_file_path = self.get_file_name_and_path(
+            filename
+        )
 
         suffix = 1
         target_file = target_file_path
@@ -157,7 +168,7 @@ class Phockup():
         while True:
             if os.path.isfile(target_file):
                 if self.checksum(filename) == self.checksum(target_file):
-                    printer.line(' => skipped, duplicated file %s' % target_file)
+                    printer.line(" => skipped, duplicated file %s" % target_file)
                     break
             else:
                 if self.move:
@@ -165,7 +176,7 @@ class Phockup():
                         if not self.dry_run:
                             shutil.move(filename, target_file)
                     except FileNotFoundError:
-                        printer.line(' => skipped, no such file or directory')
+                        printer.line(" => skipped, no such file or directory")
                         break
                 elif self.link and not self.dry_run:
                     os.link(filename, target_file)
@@ -174,10 +185,10 @@ class Phockup():
                         if not self.dry_run:
                             shutil.copy2(filename, target_file)
                     except FileNotFoundError:
-                        printer.line(' => skipped, no such file or directory')
+                        printer.line(" => skipped, no such file or directory")
                         break
 
-                printer.line(' => %s' % target_file)
+                printer.line(" => %s" % target_file)
                 self.process_xmp(filename, target_file_name, suffix, output)
                 break
 
@@ -190,8 +201,14 @@ class Phockup():
         Returns target file name and path
         """
         exif_data = Exif(filename).data()
-        if exif_data and 'MIMEType' in exif_data and self.is_image_or_video(exif_data['MIMEType']):
-            date = Date(filename).from_exif(exif_data, self.timestamp, self.date_regex, self.date_field)
+        if (
+            exif_data
+            and "MIMEType" in exif_data
+            and self.is_image_or_video(exif_data["MIMEType"])
+        ):
+            date = Date(filename).from_exif(
+                exif_data, self.timestamp, self.date_regex, self.date_field
+            )
             output = self.get_output_dir(date)
             target_file_name = self.get_file_name(filename, date)
             if not self.original_filenames:
@@ -208,23 +225,23 @@ class Phockup():
         """
         Process xmp files. These are meta data for RAW images
         """
-        xmp_original_with_ext = original_filename + '.xmp'
-        xmp_original_without_ext = os.path.splitext(original_filename)[0] + '.xmp'
+        xmp_original_with_ext = original_filename + ".xmp"
+        xmp_original_without_ext = os.path.splitext(original_filename)[0] + ".xmp"
 
-        suffix = '-%s' % suffix if suffix > 1 else ''
+        suffix = "-%s" % suffix if suffix > 1 else ""
 
         xmp_files = {}
 
         if os.path.isfile(xmp_original_with_ext):
-            xmp_target = '%s%s.xmp' % (file_name, suffix)
+            xmp_target = "%s%s.xmp" % (file_name, suffix)
             xmp_files[xmp_original_with_ext] = xmp_target
         if os.path.isfile(xmp_original_without_ext):
-            xmp_target = '%s%s.xmp' % (os.path.splitext(file_name)[0], suffix)
+            xmp_target = "%s%s.xmp" % (os.path.splitext(file_name)[0], suffix)
             xmp_files[xmp_original_without_ext] = xmp_target
 
         for original, target in xmp_files.items():
             xmp_path = os.path.sep.join([output, target])
-            printer.line('%s => %s' % (original, xmp_path))
+            printer.line("%s => %s" % (original, xmp_path))
 
             if not self.dry_run:
                 if self.move:
