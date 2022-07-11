@@ -192,7 +192,7 @@ To get all date fields available for a file, do:
     exclusive_group_debug_silent.add_argument(
         '--debug',
         action='store_true',
-        default=False,
+        default=os.environ.get('LOGLEVEL') == "DEBUG",
         help="""\
 Enable debugging.  Alternately, set the LOGLEVEL environment variable to DEBUG
 """,
