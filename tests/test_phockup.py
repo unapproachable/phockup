@@ -4,6 +4,7 @@ import os
 import shutil
 import sys
 from datetime import datetime
+from typing import List, Tuple
 
 import pytest
 
@@ -11,15 +12,18 @@ from src.dependency import check_dependencies
 from src.exif import Exif
 from src.phockup import Phockup
 
+OUTPUT_DIRECTORIES_AND_COUNTS = [('output/2017/01/01', 3),
+                                 ('output/2017/10/06', 1),
+                                 ('output/unknown', 2),
+                                 ('output/2018/01/01/', 1)]
+
 os.chdir(os.path.dirname(__file__))
 
 
 def test_check_dependencies(mocker):
     mocker.patch('shutil.which', return_value='exiftool')
     mocker.patch('sys.exit')
-
     check_dependencies()
-    assert not sys.exit.called
 
 
 def test_check_dependencies_missing(mocker):
@@ -27,7 +31,7 @@ def test_check_dependencies_missing(mocker):
     mocker.patch('sys.exit')
 
     with pytest.raises(Exception, match="Exiftool is not installed. \
-Visit http://www.sno.phy.queensu.ca/~phil/exiftool/"):
+Visit https://exiftool.org/"):
         check_dependencies()
 
 
@@ -73,7 +77,7 @@ def test_exception_for_no_write_access_when_creating_output_dir(mocker):
 def test_walking_directory():
     shutil.rmtree('output', ignore_errors=True)
     Phockup('input', 'output')
-    validate_copy_operation()
+    validate_copy_operations(OUTPUT_DIRECTORIES_AND_COUNTS)
     shutil.rmtree('output', ignore_errors=True)
 
 
@@ -94,22 +98,7 @@ def test_dry_run():
 def test_progress():
     shutil.rmtree('output', ignore_errors=True)
     Phockup('input', 'output', progress=True)
-    dir1 = 'output/2017/01/01'
-    dir2 = 'output/2017/10/06'
-    dir3 = 'output/unknown'
-    dir4 = 'output/2018/01/01/'
-    assert os.path.isdir(dir1)
-    assert os.path.isdir(dir2)
-    assert os.path.isdir(dir3)
-    assert os.path.isdir(dir4)
-    assert len([name for name in os.listdir(dir1) if
-                os.path.isfile(os.path.join(dir1, name))]) == 3
-    assert len([name for name in os.listdir(dir2) if
-                os.path.isfile(os.path.join(dir2, name))]) == 1
-    assert len([name for name in os.listdir(dir3) if
-                os.path.isfile(os.path.join(dir3, name))]) == 1
-    assert len([name for name in os.listdir(dir4) if
-                os.path.isfile(os.path.join(dir4, name))]) == 1
+    validate_copy_operations(OUTPUT_DIRECTORIES_AND_COUNTS)
     shutil.rmtree('output', ignore_errors=True)
 
 
@@ -129,7 +118,7 @@ def test_get_file_name(mocker):
     }
 
     assert Phockup('in', 'out').get_file_name("Bar/Foo.jpg", date) == \
-        "20170101-01010120.jpg"
+           "20170101-01010120.jpg"
 
 
 def test_get_file_name_is_original_on_exception(mocker):
@@ -360,59 +349,38 @@ def test_keep_original_filenames_and_filenames_case(mocker):
 def test_maxdepth_zero():
     shutil.rmtree('output', ignore_errors=True)
     Phockup('input', 'output', maxdepth=0)
-    dir1 = 'output/2017/01/01'
-    dir2 = 'output/2017/10/06'
-    dir3 = 'output/unknown'
-    assert os.path.isdir(dir1)
-    assert os.path.isdir(dir2)
-    assert os.path.isdir(dir3)
-    assert len([name for name in os.listdir(dir1) if
-                os.path.isfile(os.path.join(dir1, name))]) == 3
-    assert len([name for name in os.listdir(dir2) if
-                os.path.isfile(os.path.join(dir2, name))]) == 1
-    assert len([name for name in os.listdir(dir3) if
-                os.path.isfile(os.path.join(dir3, name))]) == 1
+    validate_copy_operations(OUTPUT_DIRECTORIES_AND_COUNTS[:3])
     shutil.rmtree('output', ignore_errors=True)
 
 
 def test_maxdepth_one():
     shutil.rmtree('output', ignore_errors=True)
     Phockup('input', 'output', maxdepth=1)
-    validate_copy_operation()
+    validate_copy_operations(OUTPUT_DIRECTORIES_AND_COUNTS)
     shutil.rmtree('output', ignore_errors=True)
 
 
 def test_maxconcurrency_none():
     shutil.rmtree('output', ignore_errors=True)
     Phockup('input', 'output', max_concurrency=0)
-    validate_copy_operation()
+    validate_copy_operations(OUTPUT_DIRECTORIES_AND_COUNTS)
     shutil.rmtree('output', ignore_errors=True)
 
 
 def test_maxconcurrency_five():
     shutil.rmtree('output', ignore_errors=True)
     Phockup('input', 'output', max_concurrency=5)
-    validate_copy_operation()
+    validate_copy_operations(OUTPUT_DIRECTORIES_AND_COUNTS)
     shutil.rmtree('output', ignore_errors=True)
 
 
-def validate_copy_operation():
-    dir1 = 'output/2017/01/01'
-    dir2 = 'output/2017/10/06'
-    dir3 = 'output/unknown'
-    dir4 = 'output/2018/01/01/'
-    assert os.path.isdir(dir1)
-    assert os.path.isdir(dir2)
-    assert os.path.isdir(dir3)
-    assert os.path.isdir(dir4)
-    assert len([name for name in os.listdir(dir1) if
-                os.path.isfile(os.path.join(dir1, name))]) == 3
-    assert len([name for name in os.listdir(dir2) if
-                os.path.isfile(os.path.join(dir2, name))]) == 1
-    assert len([name for name in os.listdir(dir3) if
-                os.path.isfile(os.path.join(dir3, name))]) == 1
-    assert len([name for name in os.listdir(dir4) if
-                os.path.isfile(os.path.join(dir4, name))]) == 1
+def validate_copy_operations(test_cases: List[Tuple[str, int]]):
+    for test_case in test_cases:
+        directory = test_case[0]
+        expected_file_count = test_case[1]
+        assert os.path.isdir(directory)
+        assert len([name for name in os.listdir(directory) if
+                    os.path.isfile(os.path.join(directory, name))]) == expected_file_count
 
 
 def test_no_exif_directory():
