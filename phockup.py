@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 import argparse
-import logging
 import logging.handlers
 import os
-import re
 import sys
+from argparse import Namespace
 
 from src.date import Date
 from src.dependency import check_dependencies
 from src.phockup import Phockup
 
 __version__ = '1.9.0'
+
+from src.utility import load_config, merge_options, setup_logging
 
 PROGRAM_DESCRIPTION = """\
 Media sorting tool to organize photos and videos from your camera in folders by year, \
@@ -21,21 +22,22 @@ them in the proper directory for year, month and day.
 """
 
 DEFAULT_DIR_FORMAT = ['%Y', '%m', '%d']
-
+DEFAULT_CONFIG_FILE_PATH = 'phocku.yaml'  # TODO: Also support phockup.yml
 logger = logging.getLogger('phockup')
+debug = False
 
 
-def parse_args(args=sys.argv[1:]):
+def parse_args(args=None) -> Namespace:
+    if args is None:
+        args = sys.argv[1:]
     parser = argparse.ArgumentParser(
         description=PROGRAM_DESCRIPTION,
         formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.version = f"v{__version__}"
-
     parser.add_argument(
-        '-v',
         '--version',
         action='version',
+        version=f"v{__version__}"
     )
 
     parser.add_argument(
@@ -154,7 +156,7 @@ Descend at most 'maxdepth' levels (a non-negative integer) of directories
         '-r',
         '--regex',
         action='store',
-        type=re.compile,
+        type=str,
         help="""\
 Specify date format for date extraction from filenames if there is no EXIF date
 information.
@@ -274,29 +276,16 @@ folder name. e.g. --no-date-dir=misc, --no-date-dir="no date"
     with varying and specific EXIF fields that are note checked by default.
     """, )
 
+    parser.add_argument(
+        '--config',
+        help="""\
+    Allows specifying a discrete YAML configuration file that overrides the default
+    "phockup.yaml" file.  If not specified, "phockup.yaml" is assumed.
+    A configuration file is not required to execute.  It is provided to
+    facilitate configuration for complex command line combinations"""
+    )
+
     return parser.parse_args(args)
-
-
-def setup_logging(options):
-    """Configure logging."""
-    root = logging.getLogger('')
-    root.setLevel(logging.WARNING)
-    formatter = logging.Formatter(
-        '[%(asctime)s] - [%(levelname)s] - %(message)s', '%Y-%m-%d %H:%M:%S')
-    ch = logging.StreamHandler()
-    ch.setFormatter(formatter)
-    root.addHandler(ch)
-    if not options.quiet ^ options.progress:
-        logger.setLevel(options.debug and logging.DEBUG or logging.INFO)
-    else:
-        logger.setLevel(logging.WARNING)
-    if options.log:
-        logfile = os.path.expanduser(options.log)
-        fh = logging.FileHandler(logfile)
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
-    logger.debug("Debug logging output enabled.")
-    logger.debug("Running Phockup version %s", __version__)
 
 
 def main(options):
@@ -325,11 +314,19 @@ def main(options):
 
 if __name__ == '__main__':
     try:
-        options = parse_args()
-        setup_logging(options)
-        main(options)
+        arg_options = parse_args(sys.argv[1:])
+        debug = arg_options.debug
+        default_options = load_config(arg_options.config or DEFAULT_CONFIG_FILE_PATH)
+        config_options = merge_options(default_options, arg_options)
+        config_options.version = __version__
+        setup_logging(config_options)
+        main(config_options)
     except Exception as e:
-        logger.warning(e)
+        if debug:
+            # Detailed exception logging for debugging
+            logging.exception(e)
+        else:
+            logging.error(e)
         sys.exit(1)
     except KeyboardInterrupt:
         logger.error("Exiting phockup...")

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import concurrent.futures
 import filecmp
+import fnmatch
 import logging
 import os
 import re
@@ -14,14 +15,11 @@ from src.date import Date
 from src.exif import Exif
 
 UNKNOWN = 'unknown'
-
 logger = logging.getLogger('phockup')
-
-
 ignored_files = ('.DS_Store', 'Thumbs.db')
 
 
-class Phockup():
+class Phockup:
     DEFAULT_DIR_FORMAT = ['%Y', '%m', '%d']
     DEFAULT_NO_DATE_DIRECTORY = "unknown"
 
@@ -55,6 +53,7 @@ class Phockup():
         self.dry_run = args.get('dry_run', False)
         self.progress = args.get('progress', False)
         self.max_depth = args.get('max_depth', -1)
+        self.ignored_files = args.get('ignored_files', ignored_files)
         # default to concurrency of one to retain existing behavior
         self.max_concurrency = args.get("max_concurrency", 1)
         if self.max_concurrency > 1:
@@ -87,7 +86,8 @@ class Phockup():
             self.print_action_report(run_time)
 
     def print_action_report(self, run_time):
-        logger.info(f"Processed {self.files_processed} files in {run_time:.2f} seconds. Average Throughput: {self.files_processed/run_time:.2f} files/second")
+        logger.info(
+            f"Processed {self.files_processed} files in {run_time:.2f} seconds. Average Throughput: {self.files_processed / run_time:.2f} files/second")
         if self.unknown_found:
             logger.info(f"Found {self.unknown_found} files without EXIF date data.")
         if self.duplicates_found:
@@ -129,13 +129,18 @@ class Phockup():
         """
 
         # Walk the directory
-        for root, dirnames, files in os.walk(self.input_dir):
+        for root, dirs, files in os.walk(self.input_dir):
             files.sort()
             file_paths_to_process = []
             for filename in files:
-                if filename in ignored_files:
-                    continue
-                file_paths_to_process.append(os.path.join(root, filename))
+                ignore_file = False
+                for ignored_file in self.ignored_files:
+                    if fnmatch.fnmatch(filename, ignored_file):
+                        ignore_file = True
+                        logger.debug(f"Skipping '{filename}' because it matches '{ignored_file}'")
+                        break
+                if not ignore_file:
+                    file_paths_to_process.append(os.path.join(root, filename))
             if self.max_concurrency > 1:
                 if not self.process_files(file_paths_to_process):
                     return
@@ -147,7 +152,7 @@ class Phockup():
                     logger.warning("Received interrupt. Shutting down...")
                     return
             if root.count(os.sep) >= self.stop_depth:
-                del dirnames[:]
+                del dirs[:]
 
     def get_file_count(self):
         file_count = 0
@@ -229,7 +234,7 @@ class Phockup():
                     pass
             except KeyboardInterrupt:
                 logger.warning(
-                        f"Received interrupt. Shutting down {self.max_concurrency} workers...")
+                    f"Received interrupt. Shutting down {self.max_concurrency} workers...")
                 executor.shutdown(wait=True)
                 return False
         return True
