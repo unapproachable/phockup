@@ -3,8 +3,9 @@ import logging
 import os
 import shutil
 import sys
+from collections import namedtuple
 from datetime import datetime
-from typing import List, Tuple
+from typing import List
 
 import pytest
 
@@ -12,10 +13,13 @@ from src.dependency import check_dependencies
 from src.exif import Exif
 from src.phockup import Phockup
 
-OUTPUT_DIRECTORIES_AND_COUNTS = [('output/2017/01/01', 3),
-                                 ('output/2017/10/06', 1),
-                                 ('output/unknown', 2),
-                                 ('output/2018/01/01/', 1)]
+# Leverage NamedTuples to contain file processing expected results
+ExpectedOutput = namedtuple('ExpectedOutput', ['directory', 'file_count'])
+
+OUTPUT_DIRECTORIES_AND_COUNTS = [ExpectedOutput('output/2017/01/01', 3),
+                                 ExpectedOutput('output/2017/10/06', 1),
+                                 ExpectedOutput('output/unknown', 2),
+                                 ExpectedOutput('output/2018/01/01/', 1)]
 
 os.chdir(os.path.dirname(__file__))
 
@@ -374,13 +378,11 @@ def test_maxconcurrency_five():
     shutil.rmtree('output', ignore_errors=True)
 
 
-def validate_copy_operations(test_cases: List[Tuple[str, int]]):
+def validate_copy_operations(test_cases: List[ExpectedOutput]):
     for test_case in test_cases:
-        directory = test_case[0]
-        expected_file_count = test_case[1]
-        assert os.path.isdir(directory)
-        assert len([name for name in os.listdir(directory) if
-                    os.path.isfile(os.path.join(directory, name))]) == expected_file_count
+        assert os.path.isdir(test_case.directory)
+        assert len([name for name in os.listdir(test_case.directory) if
+                    os.path.isfile(os.path.join(test_case.directory, name))]) == test_case.file_count
 
 
 def test_no_exif_directory():
