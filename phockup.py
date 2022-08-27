@@ -3,31 +3,23 @@ import argparse
 import logging.handlers
 import os
 import sys
-from argparse import Namespace
+from types import SimpleNamespace
 
 from src.date import Date
+from src.defaults import PROGRAM_DESCRIPTION, DEFAULT_NO_DATE_DIRECTORY
+
 from src.dependency import check_dependencies
 from src.phockup import Phockup
 
 __version__ = '1.9.0'
 
-from src.utility import load_config, merge_options, setup_logging
+from src.utility import get_config_options, merge_options, setup_logging
 
-PROGRAM_DESCRIPTION = """\
-Media sorting tool to organize photos and videos from your camera in folders by year, \
-month and day.
-The software will collect all files from the input directory and copy them to the output
-directory without changing the files content. It will only rename the files and  place
-them in the proper directory for year, month and day.
-"""
-
-DEFAULT_DIR_FORMAT = ['%Y', '%m', '%d']
-DEFAULT_CONFIG_FILE_PATH = 'phocku.yaml'  # TODO: Also support phockup.yml
 logger = logging.getLogger('phockup')
 debug = False
 
 
-def parse_args(args=None) -> Namespace:
+def parse_args(args=None) -> SimpleNamespace:
     if args is None:
         args = sys.argv[1:]
     parser = argparse.ArgumentParser(
@@ -258,7 +250,7 @@ videos only, use `--file-type=[image|video]`.
     parser.add_argument(
         '--no-date-dir',
         type=str,
-        default=Phockup.DEFAULT_NO_DATE_DIRECTORY,
+        default=DEFAULT_NO_DATE_DIRECTORY,
         help="""\
 Files without EXIF date information are placed in a directory
 named 'unknown' by default.  This option overrides that
@@ -277,7 +269,8 @@ folder name. e.g. --no-date-dir=misc, --no-date-dir="no date"
     """, )
 
     parser.add_argument(
-        '--config',
+        '--config_file',
+        default=None,
         help="""\
     Allows specifying a discrete YAML configuration file that overrides the default
     "phockup.yaml" file.  If not specified, "phockup.yaml" is assumed.
@@ -285,7 +278,10 @@ folder name. e.g. --no-date-dir=misc, --no-date-dir="no date"
     facilitate configuration for complex command line combinations"""
     )
 
-    return parser.parse_args(args)
+    # Convert from arg.Namespace to types.SimpleNamespace everywhere for simplicity
+    parsed_args = SimpleNamespace(**(vars(parser.parse_args(args))))
+    parsed_args.version = __version__
+    return parsed_args
 
 
 def main(options):
@@ -315,12 +311,13 @@ def main(options):
 if __name__ == '__main__':
     try:
         arg_options = parse_args(sys.argv[1:])
-        debug = arg_options.debug
-        default_options = load_config(arg_options.config or DEFAULT_CONFIG_FILE_PATH)
-        config_options = merge_options(default_options, arg_options)
-        config_options.version = __version__
-        setup_logging(config_options)
-        main(config_options)
+        debug = arg_options.debug  # Check for debug command line arg
+        arg_options.version = __version__
+        config_options = get_config_options(arg_options)
+        setup_logging(arg_options)
+        runtime_options = merge_options(config_options, arg_options)
+        print(f"Running Phockup version {__version__}")
+        main(runtime_options)
     except Exception as e:
         if debug:
             # Detailed exception logging for debugging

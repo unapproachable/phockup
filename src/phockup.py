@@ -8,20 +8,22 @@ import re
 import shutil
 import sys
 import time
+from types import SimpleNamespace
+from typing import List
 
 from tqdm import tqdm
 
 from src.date import Date
+from src.defaults import DEFAULT_DIR_FORMAT, DEFAULT_NO_DATE_DIRECTORY
 from src.exif import Exif
 
 UNKNOWN = 'unknown'
+
 logger = logging.getLogger('phockup')
 ignored_files = ('.DS_Store', 'Thumbs.db')
 
 
 class Phockup:
-    DEFAULT_DIR_FORMAT = ['%Y', '%m', '%d']
-    DEFAULT_NO_DATE_DIRECTORY = "unknown"
 
     def __init__(self, input_dir, output_dir, **args):
         start_time = time.time()
@@ -41,8 +43,8 @@ class Phockup:
 
         self.input_dir = input_dir
         self.output_dir = output_dir
-        self.no_date_dir = args.get('no_date_dir') or Phockup.DEFAULT_NO_DATE_DIRECTORY
-        self.dir_format = args.get('dir_format') or os.path.sep.join(Phockup.DEFAULT_DIR_FORMAT)
+        self.no_date_dir = args.get('no_date_dir') or DEFAULT_NO_DATE_DIRECTORY
+        self.dir_format = args.get('dir_format') or os.path.sep.join(DEFAULT_DIR_FORMAT)
         self.move = args.get('move', False)
         self.link = args.get('link', False)
         self.original_filenames = args.get('original_filenames', False)
@@ -87,7 +89,8 @@ class Phockup:
 
     def print_action_report(self, run_time):
         logger.info(
-            f"Processed {self.files_processed} files in {run_time:.2f} seconds. Average Throughput: {self.files_processed / run_time:.2f} files/second")
+            f"Processed {self.files_processed} files in {run_time:.2f} seconds. "
+            f"Average Throughput: {self.files_processed / run_time:.2f} files/second")
         if self.unknown_found:
             logger.info(f"Found {self.unknown_found} files without EXIF date data.")
         if self.duplicates_found:
@@ -373,3 +376,29 @@ but looking for '{self.file_type}'"
                     os.link(original, xmp_path)
                 else:
                     shutil.copy2(original, xmp_path)
+
+    class Config(SimpleNamespace):
+        input_dir: str
+        output_dir: str
+
+        dir_format: str
+        date: str
+        log: str
+        reg_ex: str
+        file_type: str
+        config_file: str
+
+        date_field: str = "SubSecCreateDate SubSecDateTimeOriginal CreateDate DateTimeOriginal"
+        dry_run: bool = False
+        link: bool = False
+        ignored_files: List = ['.DS_Store', 'Thumbs.db']
+        max_concurrency: int = 1
+        max_depth: int = -1
+        move: bool = False
+        no_date_dir: str = UNKNOWN
+        original_names: bool = False
+        progress: bool = False
+        quiet: bool = False
+        skip_unknown: bool = False
+        timestamp: bool = False
+        debug: bool = False
