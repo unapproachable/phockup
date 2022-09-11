@@ -17,14 +17,14 @@ def test_load_default_config_file(mocker):
     # number of entries for the default configuration
     config = load_config(None)
     assert config is not None
-    assert len(config.__dict__) == 20
+    assert len(config.__dict__) == 22
 
 
 def test_load_user_config_file(mocker):
     user_config_file = "input/user_config.yaml"
     config = load_config(user_config_file)
     assert config is not None
-    assert len(config.__dict__) == 20
+    assert len(config.__dict__) == 22
 
 
 def test_load_empty_config_file(tmp_path):
