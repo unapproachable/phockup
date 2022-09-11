@@ -11,7 +11,7 @@ import pytest
 
 from src.dependency import check_dependencies
 from src.exif import Exif
-from src.phockup import Phockup
+from src.phockup import Phockup, get_file_type
 
 # Leverage NamedTuples to contain file processing expected results
 ExpectedOutput = namedtuple('ExpectedOutput', ['directory', 'file_count'])
@@ -108,9 +108,9 @@ def test_progress():
 
 def test_get_file_type(mocker):
     mocker.patch.object(Phockup, 'check_directories')
-    assert Phockup('in', '.').get_file_type("image/jpeg")
-    assert Phockup('in', '.').get_file_type("video/mp4")
-    assert not Phockup('in', '.').get_file_type("foo/bar")
+    assert get_file_type("image/jpeg")
+    assert get_file_type("video/mp4")
+    assert not get_file_type("foo/bar")
 
 
 def test_get_file_name(mocker):

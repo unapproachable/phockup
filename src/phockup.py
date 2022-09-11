@@ -17,6 +17,10 @@ from src.date import Date
 from src.defaults import DEFAULT_DIR_FORMAT, DEFAULT_NO_DATE_DIRECTORY
 from src.exif import Exif
 
+PATTERN_VIDEO_REGEX = re.compile('^(video/.*)$')
+
+PATTERN_IMAGE_REGEX = re.compile('^(image/.+|application/vnd.adobe.photoshop)$')
+
 UNKNOWN = 'unknown'
 
 logger = logging.getLogger('phockup')
@@ -168,21 +172,6 @@ class Phockup:
             if root.count(os.sep) >= self.stop_depth:
                 del dirnames[:]
         return file_count
-
-    def get_file_type(self, mimetype):
-        """
-        Check if given file_type is image or video
-        Return None if other
-        Use mimetype to determine if the file is an image or video.
-        """
-        patternImage = re.compile('^(image/.+|application/vnd.adobe.photoshop)$')
-        if patternImage.match(mimetype):
-            return 'image'
-
-        patternVideo = re.compile('^(video/.*)$')
-        if patternVideo.match(mimetype):
-            return 'video'
-        return None
 
     def get_output_dir(self, date):
         """
@@ -337,7 +326,7 @@ but looking for '{self.file_type}'"
         target_file_type = None
 
         if exif_data and 'MIMEType' in exif_data:
-            target_file_type = self.get_file_type(exif_data['MIMEType'])
+            target_file_type = get_file_type(exif_data['MIMEType'])
 
         if target_file_type in ['image', 'video']:
             date = Date(filename).from_exif(exif_data, self.timestamp, self.date_regex,
@@ -413,3 +402,17 @@ but looking for '{self.file_type}'"
             self.skip_unknown: bool = False
             self.timestamp: bool = False
             self.debug: bool = False
+
+
+def get_file_type(mimetype):
+    """
+    Check if given file_type is image or video
+    Return None if other
+    Use mimetype to determine if the file is an image or video.
+    """
+    if PATTERN_IMAGE_REGEX.match(mimetype):
+        return 'image'
+
+    if PATTERN_VIDEO_REGEX.match(mimetype):
+        return 'video'
+    return None
