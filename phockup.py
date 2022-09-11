@@ -6,14 +6,13 @@ import sys
 from types import SimpleNamespace
 
 from src.date import Date
-from src.defaults import PROGRAM_DESCRIPTION, DEFAULT_NO_DATE_DIRECTORY
-
+from src.defaults import DEFAULT_NO_DATE_DIRECTORY, PROGRAM_DESCRIPTION
 from src.dependency import check_dependencies
 from src.phockup import Phockup
 
 __version__ = '1.9.0'
 
-from src.utility import get_config_options, merge_options, setup_logging
+from src.utility import get_config_options, merge_overrides, setup_logging
 
 logger = logging.getLogger('phockup')
 debug = False
@@ -134,6 +133,7 @@ So it will not move any files, just shows which changes would be done.
     )
 
     parser.add_argument(
+        '--max_depth',
         '--maxdepth',
         type=int,
         default=-1,
@@ -300,7 +300,7 @@ def main(options):
         dry_run=options.dry_run,
         quiet=options.quiet,
         progress=options.progress,
-        max_depth=options.maxdepth,
+        max_depth=options.max_depth,
         file_type=options.file_type,
         max_concurrency=options.max_concurrency,
         no_date_dir=options.no_date_dir,
@@ -315,7 +315,7 @@ if __name__ == '__main__':
         arg_options.version = __version__
         config_options = get_config_options(arg_options)
         setup_logging(arg_options)
-        runtime_options = merge_options(config_options, arg_options)
+        runtime_options = merge_overrides(config_options, arg_options)
         print(f"Running Phockup version {__version__}")
         main(runtime_options)
     except Exception as e:

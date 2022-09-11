@@ -62,7 +62,7 @@ def read_yaml(file_path):
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
                 try:
-                    return yaml.safe_load(f)
+                    return SimpleNamespace(**(yaml.safe_load(f)))
                 except (ParserError, ScannerError) as e:
                     raise RuntimeError(f"Invalid YAML in {file_path}.  Please verify syntax of YAML content.") from e
                 except Exception as e:
@@ -77,30 +77,29 @@ def load_config(config_file_path) -> Phockup.Config:
     """
     Configuration file parsing used to set or override default values and return a Namespace
     """
+    # Store reference to the filepath
+    config = Phockup.Config(config_file=config_file_path)
+
     phockup_config = read_yaml(config_file_path)
     if phockup_config:
         logger.info(f"Loaded configuration from {config_file_path}")
+        merge_overrides(config, phockup_config)
     else:
         logger.warning(f"No configuration details found in {config_file_path}")
-        phockup_config = {}
-    # Use a Namespace for compatibility with argparse.  Store reference to the filepath
-    config = Phockup.Config(config_file=config_file_path)
-
-    # Load all supported configuration options
-    config.ignore_files = phockup_config.get("ignored-files")
 
     return config
 
 
-def merge_options(defaults: SimpleNamespace, overrides: SimpleNamespace) -> SimpleNamespace:
+def merge_overrides(defaults: SimpleNamespace, overrides: SimpleNamespace) -> SimpleNamespace:
     """
     Merge two namespaces, overriding the values in the 'defaults'
     namespace with those provided in the overrides that have key
-    collisions.  The resulting namespace will have the superset of the
-    two provided collections
+    collisions.  Keys that don't exist in the defaults won't be
+    added if they only exist in the overrides.
     """
     options = vars(defaults)
-    options.update(vars(overrides))
+    # # Only add items that exist in the defaults collection and are not None
+    # options.update({k: v for k, v in overrides.__dict__.items() if k in options.keys() and v is not None})
+    # Only add items that exist in the default collection
+    options.update({k: v for k, v in overrides.__dict__.items() if k in options.keys()})
     return SimpleNamespace(**options)
-
-

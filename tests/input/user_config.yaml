@@ -2,3 +2,5 @@ ignore-files:
   - '.DS_Store'
   - 'Thumbs.db'
   - 'ehthumbs.db'
+unsupported_option:
+  "This should be ignored"

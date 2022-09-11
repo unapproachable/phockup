@@ -9,7 +9,7 @@ import shutil
 import sys
 import time
 from types import SimpleNamespace
-from typing import List
+from typing import Any
 
 from tqdm import tqdm
 
@@ -66,7 +66,8 @@ class Phockup:
         self.file_type = args.get('file_type', None)
 
         if self.dry_run:
-            logger.warning("Dry-run phockup (does a trial run with no permanent changes)...")
+            logger.warning(
+                "Dry-run phockup (does a trial run with no permanent changes)...")
 
         self.check_directories()
         # Get the number of files
@@ -118,12 +119,14 @@ class Phockup:
         if not os.path.isdir(self.input_dir):
             raise RuntimeError(f"Input directory '{self.input_dir}' is not a directory")
         if not os.path.exists(self.output_dir):
-            logger.warning(f"Output directory '{self.output_dir}' does not exist, creating now")
+            logger.warning(
+                f"Output directory '{self.output_dir}' does not exist, creating now")
             try:
                 if not self.dry_run:
                     os.makedirs(self.output_dir)
             except OSError:
-                raise OSError(f"Cannot create output '{self.output_dir}' directory. No write access!")
+                raise OSError(
+                    f"Cannot create output '{self.output_dir}' directory. No write access!")
 
     def walk_directory(self):
         """
@@ -140,7 +143,8 @@ class Phockup:
                 for ignored_file in self.ignored_files:
                     if fnmatch.fnmatch(filename, ignored_file):
                         ignore_file = True
-                        logger.debug(f"Skipping '{filename}' because it matches '{ignored_file}'")
+                        logger.debug(
+                            f"Skipping '{filename}' because it matches '{ignored_file}'")
                         break
                 if not ignore_file:
                     file_paths_to_process.append(os.path.join(root, filename))
@@ -252,7 +256,8 @@ class Phockup:
 
         progress = f'{filename}'
 
-        output, target_file_name, target_file_path, target_file_type = self.get_file_name_and_path(filename)
+        output, target_file_name, target_file_path, target_file_type = self.get_file_name_and_path(
+            filename)
         suffix = 1
         target_file = target_file_path
 
@@ -274,7 +279,8 @@ but looking for '{self.file_type}'"
                 break
 
             if os.path.isfile(target_file):
-                if filename != target_file and filecmp.cmp(filename, target_file, shallow=False):
+                if filename != target_file and filecmp.cmp(filename, target_file,
+                                                           shallow=False):
                     progress = f'{progress} => skipped, duplicated file {target_file}'
                     self.duplicates_found += 1
                     if self.progress:
@@ -378,27 +384,32 @@ but looking for '{self.file_type}'"
                     shutil.copy2(original, xmp_path)
 
     class Config(SimpleNamespace):
-        input_dir: str
-        output_dir: str
 
-        dir_format: str
-        date: str
-        log: str
-        reg_ex: str
-        file_type: str
-        config_file: str
+        def __init__(self, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            # Initialize all required keys in the configuration.  They key must *exist*
+            # to avoid AttributeErrors and should be initialized to their default value
+            self.input_dir = None
+            self.output_dir = None
+            self.dir_format = None
 
-        date_field: str = "SubSecCreateDate SubSecDateTimeOriginal CreateDate DateTimeOriginal"
-        dry_run: bool = False
-        link: bool = False
-        ignored_files: List = ['.DS_Store', 'Thumbs.db']
-        max_concurrency: int = 1
-        max_depth: int = -1
-        move: bool = False
-        no_date_dir: str = UNKNOWN
-        original_names: bool = False
-        progress: bool = False
-        quiet: bool = False
-        skip_unknown: bool = False
-        timestamp: bool = False
-        debug: bool = False
+            self.date = None
+            self.log = None
+            self.file_type = None
+            self.config_file = None
+
+            self.date_field = "SubSecCreateDate SubSecDateTimeOriginal CreateDate DateTimeOriginal"
+            self.dry_run: bool = False
+            self.link: bool = False
+            self.ignore_files: str = ".DS_Store, Thumbs.db"
+            self.max_concurrency: int = 1
+            self.max_depth: int = -1
+            self.move: bool = False
+            self.no_date_dir = UNKNOWN
+            self.original_names: bool = False
+            self.progress: bool = False
+            self.quiet: bool = False
+            self.regex = None
+            self.skip_unknown: bool = False
+            self.timestamp: bool = False
+            self.debug: bool = False

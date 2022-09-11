@@ -13,16 +13,18 @@ def test_exception_if_missing_config_file(mocker):
 
 
 def test_load_default_config_file(mocker):
+    # Test to ensure that a call to load_config returns a dictionary with the correct
+    # number of entries for the default configuration
     config = load_config(None)
     assert config is not None
-    assert len(config.__dict__) == 2
+    assert len(config.__dict__) == 20
 
 
 def test_load_user_config_file(mocker):
     user_config_file = "input/user_config.yaml"
     config = load_config(user_config_file)
     assert config is not None
-    assert len(config.__dict__) == 2
+    assert len(config.__dict__) == 20
 
 
 def test_load_empty_config_file(tmp_path):
