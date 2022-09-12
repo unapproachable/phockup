@@ -99,7 +99,7 @@ def merge_overrides(defaults: SimpleNamespace, overrides: SimpleNamespace) -> Si
     """
     options = vars(defaults)
     # # Only add items that exist in the defaults collection and are not None
-    # options.update({k: v for k, v in overrides.__dict__.items() if k in options.keys() and v is not None})
+    options.update({k: v for k, v in overrides.__dict__.items() if k in options.keys() and v is not None})
     # Only add items that exist in the default collection
-    options.update({k: v for k, v in overrides.__dict__.items() if k in options.keys()})
+    # options.update({k: v for k, v in overrides.__dict__.items() if k in options.keys()})
     return SimpleNamespace(**options)

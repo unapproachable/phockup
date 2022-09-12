@@ -51,7 +51,8 @@ def test_exception_if_input_not_directory(mocker):
     mocker.patch('os.makedirs')
     mocker.patch('sys.exit')
 
-    with pytest.raises(RuntimeError, match="Input directory 'input/exif.jpg' is not a directory"):
+    with pytest.raises(RuntimeError,
+                       match="Input directory 'input/exif.jpg' is not a directory"):
         Phockup('input/exif.jpg', 'out')
 
 
@@ -110,6 +111,8 @@ def test_get_file_type(mocker):
     mocker.patch.object(Phockup, 'check_directories')
     assert get_file_type("image/jpeg")
     assert get_file_type("video/mp4")
+    assert get_file_type("application/vnd.adobe.photoshop")  # Photoshop PSD, etc.
+    assert get_file_type("application/vnd.apple.photos")  # Apple AAE files
     assert not get_file_type("foo/bar")
 
 
@@ -382,7 +385,8 @@ def validate_copy_operations(test_cases: List[ExpectedOutput]):
     for test_case in test_cases:
         assert os.path.isdir(test_case.directory)
         assert len([name for name in os.listdir(test_case.directory) if
-                    os.path.isfile(os.path.join(test_case.directory, name))]) == test_case.file_count
+                    os.path.isfile(
+                        os.path.join(test_case.directory, name))]) == test_case.file_count
 
 
 def test_no_exif_directory():

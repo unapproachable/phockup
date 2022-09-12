@@ -19,7 +19,7 @@ from src.exif import Exif
 
 PATTERN_VIDEO_REGEX = re.compile('^(video/.*)$')
 
-PATTERN_IMAGE_REGEX = re.compile('^(image/.+|application/vnd.adobe.photoshop)$')
+PATTERN_IMAGE_REGEX = re.compile('^(image/.+|application/vnd.adobe.photoshop|application/vnd.apple.photos)$')
 
 UNKNOWN = 'unknown'
 
@@ -251,6 +251,11 @@ class Phockup:
         target_file = target_file_path
 
         while True:
+            if target_file_type is None:
+                # Skip entirely because we coulnd't get MIMEType data
+                progress = f"{progress} => skipped, unsupported MIME Type"
+                logger.info(progress)
+                break
             if self.file_type is not None \
                     and self.file_type != target_file_type:
                 progress = f"{progress} => skipped, file is '{target_file_type}' \
@@ -415,4 +420,6 @@ def get_file_type(mimetype):
 
     if PATTERN_VIDEO_REGEX.match(mimetype):
         return 'video'
+
+    logger.warning(f"Unsupported MIME Type found: {mimetype}")
     return None
