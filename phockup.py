@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import logging.handlers
-import os
 import sys
 from types import SimpleNamespace
 
 from src.date import Date
-from src.defaults import DEFAULT_NO_DATE_DIRECTORY, PROGRAM_DESCRIPTION
+from src.defaults import PROGRAM_DESCRIPTION
 from src.dependency import check_dependencies
 from src.phockup import Phockup
 
@@ -124,7 +123,6 @@ So it will not move any files, just shows which changes would be done.
         '-c',
         '--max-concurrency',
         type=int,
-        default=1,
         choices=range(1, 255),
         metavar='1-255',
         help="Sets the level of concurrency for processing files in a "
@@ -136,7 +134,6 @@ So it will not move any files, just shows which changes would be done.
         '--max_depth',
         '--maxdepth',
         type=int,
-        default=-1,
         choices=range(0, 255),
         metavar='1-255',
         help="""\
@@ -186,7 +183,6 @@ To get all date fields available for a file, do:
     exclusive_group_debug_silent.add_argument(
         '--debug',
         action='store_true',
-        default=os.environ.get('LOGLEVEL') == "DEBUG",
         help="""\
 Enable debugging.  Alternately, set the LOGLEVEL environment variable to DEBUG
 """,
@@ -195,7 +191,6 @@ Enable debugging.  Alternately, set the LOGLEVEL environment variable to DEBUG
     exclusive_group_debug_silent.add_argument(
         '--quiet',
         action='store_true',
-        default=False,
         help="""\
 Run without output.
 """,
@@ -204,7 +199,6 @@ Run without output.
     exclusive_group_debug_silent.add_argument(
         '--progress',
         action='store_true',
-        default=False,
         help="""\
 Run with progressbar output.
 """,
@@ -250,7 +244,6 @@ videos only, use `--file-type=[image|video]`.
     parser.add_argument(
         '--no-date-dir',
         type=str,
-        default=DEFAULT_NO_DATE_DIRECTORY,
         help="""\
 Files without EXIF date information are placed in a directory
 named 'unknown' by default.  This option overrides that
@@ -261,7 +254,6 @@ folder name. e.g. --no-date-dir=misc, --no-date-dir="no date"
     parser.add_argument(
         '--skip-unknown',
         action='store_true',
-        default=False,
         help="""\
     Ignore files that don't contain valid EXIF data for the criteria specified.
     This is useful if you intend to make multiple passes over an input directory
@@ -270,7 +262,6 @@ folder name. e.g. --no-date-dir=misc, --no-date-dir="no date"
 
     parser.add_argument(
         '--config_file',
-        default=None,
         help="""\
     Allows specifying a discrete YAML configuration file that overrides the default
     "phockup.yaml" file.  If not specified, "phockup.yaml" is assumed.
@@ -313,7 +304,7 @@ if __name__ == '__main__':
         arg_options = parse_args(sys.argv[1:])
         debug = arg_options.debug  # Check for debug command line arg
         arg_options.version = __version__
-        config_options = get_config_options(arg_options)
+        config_options = get_config_options(arg_options, "phockup.yaml")
         setup_logging(arg_options)
         runtime_options = merge_overrides(config_options, arg_options)
         print(f"Running Phockup version {__version__}")

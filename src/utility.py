@@ -6,7 +6,7 @@ import yaml
 from yaml.parser import ParserError
 from yaml.scanner import ScannerError
 
-from src.phockup import Phockup
+from src.config import Config
 
 logger = logging.getLogger('phockup')
 
@@ -44,7 +44,7 @@ def get_config_options(arg_options=None, default_config_path=None) -> SimpleName
         return load_config(arg_options.config_file)
     else:
         # Empty Config
-        return SimpleNamespace()
+        return Config()
 
 
 def read_yaml(file_path):
@@ -73,12 +73,12 @@ def read_yaml(file_path):
             raise FileNotFoundError(f"Specified configuration file {file_path} does not exist")
 
 
-def load_config(config_file_path) -> Phockup.Config:
+def load_config(config_file_path) -> Config:
     """
     Configuration file parsing used to set or override default values and return a Namespace
     """
     # Store reference to the filepath
-    config = Phockup.Config(config_file=config_file_path)
+    config = Config(config_file=config_file_path)
 
     phockup_config = read_yaml(config_file_path)
     if phockup_config:

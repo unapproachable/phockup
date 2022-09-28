@@ -8,20 +8,19 @@ import re
 import shutil
 import sys
 import time
-from types import SimpleNamespace
-from typing import Any
+from os.path import exists
 
 from tqdm import tqdm
 
+from src.config import UNKNOWN
 from src.date import Date
 from src.defaults import DEFAULT_DIR_FORMAT, DEFAULT_NO_DATE_DIRECTORY
 from src.exif import Exif
 
 PATTERN_VIDEO_REGEX = re.compile('^(video/.*)$')
 
-PATTERN_IMAGE_REGEX = re.compile('^(image/.+|application/vnd.adobe.photoshop|application/vnd.apple.photos)$')
-
-UNKNOWN = 'unknown'
+PATTERN_IMAGE_REGEX = re.compile(
+    '^(image/.+|application/vnd.adobe.photoshop|application/vnd.apple.photos)$')
 
 logger = logging.getLogger('phockup')
 ignored_files = ('.DS_Store', 'Thumbs.db')
@@ -36,6 +35,7 @@ class Phockup:
         self.unknown_found = 0
         self.files_moved = 0
         self.files_copied = 0
+        self.files_skipped = 0
 
         input_dir = os.path.expanduser(input_dir)
         output_dir = os.path.expanduser(output_dir)
@@ -96,10 +96,13 @@ class Phockup:
         logger.info(
             f"Processed {self.files_processed} files in {run_time:.2f} seconds. "
             f"Average Throughput: {self.files_processed / run_time:.2f} files/second")
-        if self.unknown_found:
-            logger.info(f"Found {self.unknown_found} files without EXIF date data.")
         if self.duplicates_found:
             logger.info(f"Found {self.duplicates_found} duplicate files.")
+        if self.unknown_found:
+            logger.info(f"Found {self.unknown_found} files without EXIF date data.")
+        if self.files_skipped:
+            logger.info(f"Skipped {self.files_skipped} files with unsupported MIME Type data")
+
         if self.files_copied:
             if self.dry_run:
                 logger.info(f"Would have copied {self.files_copied} files.")
@@ -245,6 +248,13 @@ class Phockup:
 
         progress = f'{filename}'
 
+        if not exists(filename):
+            progress = f'{progress} => skipped, no such file or directory'
+            if self.progress:
+                self.pbar.write(progress)
+            logger.warning(progress)
+            return
+
         output, target_file_name, target_file_path, target_file_type = self.get_file_name_and_path(
             filename)
         suffix = 1
@@ -254,6 +264,7 @@ class Phockup:
             if target_file_type is None:
                 # Skip entirely because we coulnd't get MIMEType data
                 progress = f"{progress} => skipped, unsupported MIME Type"
+                self.files_skipped += 1
                 logger.info(progress)
                 break
             if self.file_type is not None \
@@ -328,10 +339,12 @@ but looking for '{self.file_type}'"
         Returns target file name and path
         """
         exif_data = Exif(filename).data()
-        target_file_type = None
 
-        if exif_data and 'MIMEType' in exif_data:
-            target_file_type = get_file_type(exif_data['MIMEType'])
+        if not exif_data or 'MIMEType' not in exif_data:
+            # No EXIF or MIME Type data
+            return [None] * 4  # Satisfy unpacking return values
+
+        target_file_type = get_file_type(exif_data['MIMEType'])
 
         if target_file_type in ['image', 'video']:
             date = Date(filename).from_exif(exif_data, self.timestamp, self.date_regex,
@@ -377,37 +390,6 @@ but looking for '{self.file_type}'"
                 else:
                     shutil.copy2(original, xmp_path)
 
-    class Config(SimpleNamespace):
-
-        def __init__(self, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            # Initialize all required keys in the configuration.  They key must *exist*
-            # to avoid AttributeErrors and should be initialized to their default value
-            self.input_dir = None
-            self.output_dir = None
-            self.dir_format = None
-
-            self.date = None
-            self.log = None
-            self.file_type = None
-            self.config_file = None
-
-            self.date_field = "SubSecCreateDate SubSecDateTimeOriginal CreateDate DateTimeOriginal"
-            self.dry_run: bool = False
-            self.link: bool = False
-            self.ignore_files: str = ".DS_Store, Thumbs.db"
-            self.max_concurrency: int = 1
-            self.max_depth: int = -1
-            self.move: bool = False
-            self.no_date_dir = UNKNOWN
-            self.original_names: bool = False
-            self.progress: bool = False
-            self.quiet: bool = False
-            self.regex = None
-            self.skip_unknown: bool = False
-            self.timestamp: bool = False
-            self.debug: bool = False
-
 
 def get_file_type(mimetype):
     """
@@ -421,5 +403,5 @@ def get_file_type(mimetype):
     if PATTERN_VIDEO_REGEX.match(mimetype):
         return 'video'
 
-    logger.warning(f"Unsupported MIME Type found: {mimetype}")
+    logger.debug(f"Unsupported MIME Type found: {mimetype}")
     return None

@@ -18,7 +18,7 @@ ExpectedOutput = namedtuple('ExpectedOutput', ['directory', 'file_count'])
 
 OUTPUT_DIRECTORIES_AND_COUNTS = [ExpectedOutput('output/2017/01/01', 3),
                                  ExpectedOutput('output/2017/10/06', 1),
-                                 ExpectedOutput('output/unknown', 2),
+                                 ExpectedOutput('output/unknown', 0),
                                  ExpectedOutput('output/2018/01/01/', 1)]
 
 os.chdir(os.path.dirname(__file__))
@@ -232,12 +232,13 @@ def test_process_image_unknown(mocker):
     shutil.rmtree('output', ignore_errors=True)
 
 
-def test_process_other(mocker):
+def test_process_other(mocker, caplog):
     shutil.rmtree('output', ignore_errors=True)
     mocker.patch.object(Phockup, 'check_directories')
     mocker.patch.object(Phockup, 'walk_directory')
-    Phockup('input', 'output').process_file("input/other.txt")
-    assert os.path.isfile("output/unknown/other.txt")
+    with caplog.at_level(logging.INFO):
+        Phockup('input', 'output').process_file("input/other.txt")
+    assert 'skipped, unsupported MIME Type' in caplog.text
     shutil.rmtree('output', ignore_errors=True)
 
 
@@ -355,14 +356,14 @@ def test_keep_original_filenames_and_filenames_case(mocker):
 
 def test_maxdepth_zero():
     shutil.rmtree('output', ignore_errors=True)
-    Phockup('input', 'output', maxdepth=0)
+    Phockup('input', 'output', max_depth=0)
     validate_copy_operations(OUTPUT_DIRECTORIES_AND_COUNTS[:3])
     shutil.rmtree('output', ignore_errors=True)
 
 
 def test_maxdepth_one():
     shutil.rmtree('output', ignore_errors=True)
-    Phockup('input', 'output', maxdepth=1)
+    Phockup('input', 'output', max_depth=1)
     validate_copy_operations(OUTPUT_DIRECTORIES_AND_COUNTS)
     shutil.rmtree('output', ignore_errors=True)
 
