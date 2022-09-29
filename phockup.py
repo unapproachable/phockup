@@ -182,6 +182,7 @@ To get all date fields available for a file, do:
 
     exclusive_group_debug_silent.add_argument(
         '--debug',
+        default=argparse.SUPPRESS,
         action='store_true',
         help="""\
 Enable debugging.  Alternately, set the LOGLEVEL environment variable to DEBUG
@@ -295,20 +296,24 @@ def main(options):
         file_type=options.file_type,
         max_concurrency=options.max_concurrency,
         no_date_dir=options.no_date_dir,
-        skip_unknown=options.skip_unknown
+        skip_unknown=options.skip_unknown,
+        ignored_files=options.ignored_files
     )
 
 
 if __name__ == '__main__':
     try:
         arg_options = parse_args(sys.argv[1:])
-        debug = arg_options.debug  # Check for debug command line arg
+        debug = 'debug' in arg_options.__dict__.keys()
         arg_options.version = __version__
         config_options = get_config_options(arg_options, "phockup.yaml")
-        setup_logging(arg_options)
         runtime_options = merge_overrides(config_options, arg_options)
+        setup_logging(runtime_options)
         print(f"Running Phockup version {__version__}")
         main(runtime_options)
+    except TypeError as e:
+        logger.exception(
+            'Possible invalid configuration parameter provided.\n\nOffending type below:\n\n', exc_info=e)
     except Exception as e:
         if debug:
             # Detailed exception logging for debugging

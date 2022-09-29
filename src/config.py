@@ -24,7 +24,7 @@ class Config(SimpleNamespace):
         self.debug: bool = os.environ.get('LOGLEVEL') == "DEBUG"
         self.dry_run: bool = False
         self.link: bool = False
-        self.ignore_files: str = ".DS_Store, Thumbs.db"
+        self.ignored_files: str = ".DS_Store, Thumbs.db"
         self.max_concurrency: int = 1
         self.max_depth: int = -1
         self.move: bool = False
@@ -35,3 +35,4 @@ class Config(SimpleNamespace):
         self.regex = None
         self.skip_unknown: bool = False
         self.timestamp: bool = False
+        self.version = None

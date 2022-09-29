@@ -1,4 +1,23 @@
-ignored-files:
+#
+# Phockup configuration file
+#
+# This file is intended to provide a place to configure most command line options
+# in a single place for simplifying consistent behavior in different environments
+# and with particular file sets.
+#
+# By default, phockup will look for a configuration file in the same directory
+# named phockup.yaml.  You can override the configuration file used by passing
+# it on the command line via the --config option.
+#
+# Any option that is supported on the command line work here if you use the 'long
+# name for the option (i.e. 'date_field' instead of 'f').  The hyphens must be
+# converted to underscores (e.g. 'date-field' -> 'date_field') due to a difference
+# in convention between command line arguments and python variable naming.
+#
+
+ignored_files:
   - '.DS_Store'
   - 'Thumbs.db'
   - 'ehthumbs.db'
+max_depth: "sugar"
+max_concurrency: "butter"

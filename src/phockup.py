@@ -30,12 +30,14 @@ class Phockup:
 
     def __init__(self, input_dir, output_dir, **args):
         start_time = time.time()
-        self.files_processed = 0
-        self.duplicates_found = 0
-        self.unknown_found = 0
-        self.files_moved = 0
-        self.files_copied = 0
-        self.files_skipped = 0
+
+        self.files_processed: int = 0
+        self.duplicates_found: int = 0
+        self.unknown_found: int = 0
+        self.files_moved: int = 0
+        self.files_copied: int = 0
+        self.files_skipped: int = 0
+        self.files_ignored: int = 0
 
         input_dir = os.path.expanduser(input_dir)
         output_dir = os.path.expanduser(output_dir)
@@ -45,23 +47,24 @@ class Phockup:
         if output_dir.endswith(os.path.sep):
             output_dir = output_dir[:-1]
 
-        self.input_dir = input_dir
-        self.output_dir = output_dir
-        self.no_date_dir = args.get('no_date_dir') or DEFAULT_NO_DATE_DIRECTORY
-        self.dir_format = args.get('dir_format') or os.path.sep.join(DEFAULT_DIR_FORMAT)
-        self.move = args.get('move', False)
-        self.link = args.get('link', False)
-        self.original_filenames = args.get('original_filenames', False)
-        self.date_regex = args.get('date_regex', None)
-        self.timestamp = args.get('timestamp', False)
-        self.date_field = args.get('date_field', False)
-        self.skip_unknown = args.get("skip_unknown", False)
-        self.dry_run = args.get('dry_run', False)
-        self.progress = args.get('progress', False)
-        self.max_depth = args.get('max_depth', -1)
-        self.ignored_files = args.get('ignored_files', ignored_files)
+        self.input_dir: str = input_dir
+        self.output_dir: str = output_dir
+        self.no_date_dir: str = args.get('no_date_dir') or DEFAULT_NO_DATE_DIRECTORY
+        self.dir_format: str = args.get('dir_format') or \
+            os.path.sep.join(DEFAULT_DIR_FORMAT)
+        self.move: bool = args.get('move', False)
+        self.link: bool = args.get('link', False)
+        self.original_filenames: bool = args.get('original_filenames', False)
+        self.date_regex: str = args.get('date_regex', None)
+        self.timestamp: bool = args.get('timestamp', False)
+        self.date_field: bool = args.get('date_field', False)
+        self.skip_unknown: bool = args.get("skip_unknown", False)
+        self.dry_run: bool = args.get('dry_run', False)
+        self.progress: bool = args.get('progress', False)
+        self.max_depth: int = args.get('max_depth', -1)
+        self.ignored_files: str = args.get('ignored_files', ignored_files)
         # default to concurrency of one to retain existing behavior
-        self.max_concurrency = args.get("max_concurrency", 1)
+        self.max_concurrency: int = args.get("max_concurrency", 1)
         if self.max_concurrency > 1:
             logger.info(f"Using {self.max_concurrency} workers to process files.")
 
@@ -101,7 +104,8 @@ class Phockup:
         if self.unknown_found:
             logger.info(f"Found {self.unknown_found} files without EXIF date data.")
         if self.files_skipped:
-            logger.info(f"Skipped {self.files_skipped} files with unsupported MIME Type data")
+            logger.info(
+                f"Skipped {self.files_skipped} files with unsupported MIME Type data")
 
         if self.files_copied:
             if self.dry_run:
@@ -113,6 +117,8 @@ class Phockup:
                 logger.info(f"Would have moved {self.files_moved} files.")
             else:
                 logger.info(f"Moved {self.files_moved} files.")
+        if self.ignored_files:
+            logger.info(f"Ignored {self.files_ignored} files.")
 
     def check_directories(self):
         """
@@ -152,6 +158,8 @@ class Phockup:
                         ignore_file = True
                         logger.debug(
                             f"Skipping '{filename}' because it matches '{ignored_file}'")
+                        self.files_processed += 1
+                        self.files_ignored += 1
                         break
                 if not ignore_file:
                     file_paths_to_process.append(os.path.join(root, filename))

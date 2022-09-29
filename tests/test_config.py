@@ -5,6 +5,8 @@ import pytest
 
 from src.utility import load_config
 
+CONFIG_ATTRIBUTE_COUNT = 23
+
 
 def test_exception_if_missing_config_file(mocker):
     missing_config_file = "missing_config.yaml"
@@ -17,14 +19,14 @@ def test_load_default_config_file(mocker):
     # number of entries for the default configuration
     config = load_config(None)
     assert config is not None
-    assert len(config.__dict__) == 22
+    assert len(config.__dict__) == CONFIG_ATTRIBUTE_COUNT
 
 
 def test_load_user_config_file(mocker):
     user_config_file = "input/user_config.yaml"
     config = load_config(user_config_file)
     assert config is not None
-    assert len(config.__dict__) == 22
+    assert len(config.__dict__) == CONFIG_ATTRIBUTE_COUNT
 
 
 def test_load_empty_config_file(tmp_path):
