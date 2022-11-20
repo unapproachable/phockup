@@ -19,5 +19,5 @@ ignored_files:
   - '.DS_Store'
   - 'Thumbs.db'
   - 'ehthumbs.db'
-max_depth: "sugar"
-max_concurrency: "butter"
+  - '*asa.ini'
+date_field: "SubSecCreateDate SubSecDateTimeOriginal CreateDate DateTimeOriginal FileModifyDate"
