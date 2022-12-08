@@ -9,7 +9,7 @@ from src.defaults import PROGRAM_DESCRIPTION
 from src.dependency import check_dependencies
 from src.phockup import Phockup
 
-__version__ = '1.9.0'
+__version__ = '1.9.2'
 
 from src.utility import get_config_options, merge_overrides, setup_logging
 
