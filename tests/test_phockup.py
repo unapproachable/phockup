@@ -448,3 +448,46 @@ def test_skip_unknown():
     assert len([name for name in os.listdir(dir4) if
                 os.path.isfile(os.path.join(dir4, name))]) == 1
     shutil.rmtree('output', ignore_errors=True)
+
+
+def test_exclude_wildcard():
+    shutil.rmtree('output', ignore_errors=True)
+    Phockup('input', 'output', exclude=["*.mp4", "*.txt"])
+    dir1 = 'output/2017/01/01'
+    dir2 = 'output/2017/10/06'
+    dir3 = 'output/unknown'
+    dir4 = 'output/2018/01/01/'
+    assert os.path.isdir(dir1)
+    assert os.path.isdir(dir2)
+    # No files should exist in this directory becaues they were excluded
+    assert not os.path.isdir(dir3)
+    assert os.path.isdir(dir4)
+    assert len([name for name in os.listdir(dir1) if
+                os.path.isfile(os.path.join(dir1, name))]) == 2
+    assert len([name for name in os.listdir(dir2) if
+                os.path.isfile(os.path.join(dir2, name))]) == 1
+    assert len([name for name in os.listdir(dir4) if
+                os.path.isfile(os.path.join(dir4, name))]) == 1
+    shutil.rmtree('output', ignore_errors=True)
+
+
+def test_exclude_folder():
+    shutil.rmtree('output', ignore_errors=True)
+    Phockup('input', 'output', exclude=["sub_folder"])
+    dir1 = 'output/2017/01/01'
+    dir2 = 'output/2017/10/06'
+    dir3 = 'output/unknown'
+    dir4 = 'output/2018/01/01/'
+    assert os.path.isdir(dir1)
+    assert os.path.isdir(dir2)
+    # This directory and file should not exist because we excluded
+    # the subdirectory that it is sourced from
+    assert not os.path.isfile('output/2018/01/01/20180101-010101.jpg')
+    assert not os.path.isdir(dir4)
+    assert len([name for name in os.listdir(dir1) if
+                os.path.isfile(os.path.join(dir1, name))]) == 3
+    assert len([name for name in os.listdir(dir2) if
+                os.path.isfile(os.path.join(dir2, name))]) == 1
+    assert len([name for name in os.listdir(dir3) if
+                os.path.isfile(os.path.join(dir3, name))]) == 1
+    shutil.rmtree('output', ignore_errors=True)

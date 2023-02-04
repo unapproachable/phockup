@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import concurrent.futures
 import filecmp
+import fnmatch
 import logging
 import os
 import re
@@ -18,20 +19,23 @@ UNKNOWN = 'unknown'
 logger = logging.getLogger('phockup')
 
 
-ignored_files = ('.DS_Store', 'Thumbs.db')
-
-
 class Phockup():
     DEFAULT_DIR_FORMAT = ['%Y', '%m', '%d']
     DEFAULT_NO_DATE_DIRECTORY = "unknown"
+    DEFAULT_EXCLUDE_PATTERNS = ('.DS_Store', 'Thumbs.db')
 
     def __init__(self, input_dir, output_dir, **args):
         start_time = time.time()
+        self.files_found = 0
         self.files_processed = 0
         self.duplicates_found = 0
         self.unknown_found = 0
         self.files_moved = 0
         self.files_copied = 0
+        self.files_excluded = 0
+        self.directories_excluded = 0
+        self.file_exclusion_count_by_pattern = {}
+        self.dir_exclusion_count_by_pattern = {}
 
         input_dir = os.path.expanduser(input_dir)
         output_dir = os.path.expanduser(output_dir)
@@ -44,7 +48,8 @@ class Phockup():
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.no_date_dir = args.get('no_date_dir') or Phockup.DEFAULT_NO_DATE_DIRECTORY
-        self.dir_format = args.get('dir_format') or os.path.sep.join(Phockup.DEFAULT_DIR_FORMAT)
+        self.dir_format = args.get('dir_format') or os.path.sep.join(
+            Phockup.DEFAULT_DIR_FORMAT)
         self.move = args.get('move', False)
         self.link = args.get('link', False)
         self.original_filenames = args.get('original_filenames', False)
@@ -63,9 +68,11 @@ class Phockup():
         self.stop_depth = self.input_dir.count(os.sep) + self.max_depth \
             if self.max_depth > -1 else sys.maxsize
         self.file_type = args.get('file_type', None)
+        self.excluded_patterns = args.get('exclude') or self.DEFAULT_EXCLUDE_PATTERNS
 
         if self.dry_run:
-            logger.warning("Dry-run phockup (does a trial run with no permanent changes)...")
+            logger.warning(
+                "Dry-run phockup (does a trial run with no permanent changes)...")
 
         self.check_directories()
         # Get the number of files
@@ -87,7 +94,21 @@ class Phockup():
             self.print_action_report(run_time)
 
     def print_action_report(self, run_time):
-        logger.info(f"Processed {self.files_processed} files in {run_time:.2f} seconds. Average Throughput: {self.files_processed/run_time:.2f} files/second")
+        logger.info(f"Found {self.files_found} files in {self.input_dir}")
+        if self.directories_excluded:
+            logger.info(
+                f"Filtered out {self.directories_excluded} directories via exclusion patterns.")
+            for pattern in self.dir_exclusion_count_by_pattern:
+                logger.info(
+                    f"\t{pattern}\t\t{self.dir_exclusion_count_by_pattern[pattern]}")
+        if self.files_excluded:
+            logger.info(f"Filtered out {self.files_excluded} files via exclusion patterns.")
+            for pattern in self.file_exclusion_count_by_pattern:
+                logger.info(
+                    f"\t{pattern}\t\t{self.file_exclusion_count_by_pattern[pattern]}")
+        logger.info(
+            f"Processed {self.files_processed} files in {run_time:.2f} seconds. Average "
+            f"Throughput: {self.files_processed / run_time:.2f} files/second")
         if self.unknown_found:
             logger.info(f"Found {self.unknown_found} files without EXIF date data.")
         if self.duplicates_found:
@@ -115,12 +136,14 @@ class Phockup():
         if not os.path.isdir(self.input_dir):
             raise RuntimeError(f"Input directory '{self.input_dir}' is not a directory")
         if not os.path.exists(self.output_dir):
-            logger.warning(f"Output directory '{self.output_dir}' does not exist, creating now")
+            logger.warning(
+                f"Output directory '{self.output_dir}' does not exist, creating now")
             try:
                 if not self.dry_run:
                     os.makedirs(self.output_dir)
             except OSError:
-                raise OSError(f"Cannot create output '{self.output_dir}' directory. No write access!")
+                raise OSError(
+                    f"Cannot create output '{self.output_dir}' directory. No write access!")
 
     def walk_directory(self):
         """
@@ -130,11 +153,25 @@ class Phockup():
 
         # Walk the directory
         for root, dirnames, files in os.walk(self.input_dir):
-            files.sort()
+            self.files_found += len(files)
+            filtered_dirs, excluded_count_by_pattern = filter_files(dirnames,
+                                                                    self.excluded_patterns)
+            self.directories_excluded += len(filtered_dirs)
+
+            for directory in filtered_dirs:
+                dirnames.remove(directory)
+            update_exclusion_counts(excluded_count_by_pattern,
+                                    self.dir_exclusion_count_by_pattern)
+            filtered_files, excluded_file_count, excluded_count_by_pattern = exclude_files(
+                files, self.excluded_patterns)
+            update_exclusion_counts(excluded_count_by_pattern,
+                                    self.file_exclusion_count_by_pattern)
+            self.files_excluded += excluded_file_count
+            if excluded_file_count:
+                logger.info(
+                    f"Excluded {excluded_file_count} file{'s' if excluded_file_count > 1 else ''} from processing in {root}")
             file_paths_to_process = []
-            for filename in files:
-                if filename in ignored_files:
-                    continue
+            for filename in filtered_files:
                 file_paths_to_process.append(os.path.join(root, filename))
             if self.max_concurrency > 1:
                 if not self.process_files(file_paths_to_process):
@@ -229,7 +266,7 @@ class Phockup():
                     pass
             except KeyboardInterrupt:
                 logger.warning(
-                        f"Received interrupt. Shutting down {self.max_concurrency} workers...")
+                    f"Received interrupt. Shutting down {self.max_concurrency} workers...")
                 executor.shutdown(wait=True)
                 return False
         return True
@@ -244,7 +281,8 @@ class Phockup():
 
         progress = f'{filename}'
 
-        output, target_file_name, target_file_path, target_file_type = self.get_file_name_and_path(filename)
+        output, target_file_name, target_file_path, target_file_type = self.get_file_name_and_path(
+            filename)
         suffix = 1
         target_file = target_file_path
 
@@ -266,7 +304,8 @@ but looking for '{self.file_type}'"
                 break
 
             if os.path.isfile(target_file):
-                if filename != target_file and filecmp.cmp(filename, target_file, shallow=False):
+                if filename != target_file and filecmp.cmp(filename, target_file,
+                                                           shallow=False):
                     progress = f'{progress} => skipped, duplicated file {target_file}'
                     self.duplicates_found += 1
                     if self.progress:
@@ -368,3 +407,33 @@ but looking for '{self.file_type}'"
                     os.link(original, xmp_path)
                 else:
                     shutil.copy2(original, xmp_path)
+
+    # Utility mechanism for tracking how many files were excluded by each pattern
+
+
+def filter_files(files, filter_patterns):
+    excluded_files = []
+    exclusions_by_pattern = {}
+    for pattern in filter_patterns:
+        # Find files that match the pattern
+        matching_files = fnmatch.filter(files, pattern)
+        # Track how many files were filtered by this pattern
+        exclusions_by_pattern[pattern] = len(matching_files)
+        # Add the files to the list of the filtered files
+        excluded_files.extend(matching_files)
+    return excluded_files, exclusions_by_pattern
+
+
+def exclude_files(files, filter_patterns):
+    excluded_files, exclusions_by_pattern = filter_files(files, filter_patterns)
+    filtered_files = [i for i in files if i not in excluded_files]
+    return filtered_files, len(excluded_files), exclusions_by_pattern
+
+
+def update_exclusion_counts(excluded_count_by_pattern,
+                            total_count_by_pattern):
+    for pattern in excluded_count_by_pattern.keys():
+        total_count_by_pattern[pattern] = \
+            excluded_count_by_pattern[pattern] + \
+            total_count_by_pattern.get(pattern, 0)
+    pass

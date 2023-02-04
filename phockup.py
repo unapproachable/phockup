@@ -274,6 +274,17 @@ folder name. e.g. --no-date-dir=misc, --no-date-dir="no date"
     with varying and specific EXIF fields that are note checked by default.
     """, )
 
+    parser.add_argument(
+        '--exclude',
+        type=str,
+        nargs='+',
+        action='extend',
+        help="""\
+    File patterns used to exclude files from being processed.  One or more file
+    patterns can be added to the command line after the flag to allow multiple
+    exclusions on one execution (e.g. --exclucde .picassa ethumbs.db desktop.ini)"""
+    )
+
     return parser.parse_args(args)
 
 
@@ -319,7 +330,8 @@ def main(options):
         file_type=options.file_type,
         max_concurrency=options.max_concurrency,
         no_date_dir=options.no_date_dir,
-        skip_unknown=options.skip_unknown
+        skip_unknown=options.skip_unknown,
+        exclude=options.exclude
     )
 
 
