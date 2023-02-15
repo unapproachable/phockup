@@ -14,12 +14,11 @@ from tqdm import tqdm
 from src.date import Date
 from src.exif import Exif
 
-UNKNOWN = 'unknown'
-
 logger = logging.getLogger('phockup')
+ignored_files = ('.DS_Store', 'Thumbs.db')
 
 
-class Phockup():
+class Phockup:
     DEFAULT_DIR_FORMAT = ['%Y', '%m', '%d']
     DEFAULT_NO_DATE_DIRECTORY = "unknown"
     DEFAULT_EXCLUDE_PATTERNS = ('.DS_Store', 'Thumbs.db')
@@ -47,6 +46,8 @@ class Phockup():
 
         self.input_dir = input_dir
         self.output_dir = output_dir
+        self.output_prefix = args.get('output_prefix' or None)
+        self.output_suffix = args.get('output_suffix' or '')
         self.no_date_dir = args.get('no_date_dir') or Phockup.DEFAULT_NO_DATE_DIRECTORY
         self.dir_format = args.get('dir_format') or os.path.sep.join(
             Phockup.DEFAULT_DIR_FORMAT)
@@ -127,8 +128,8 @@ class Phockup():
     def check_directories(self):
         """
         Check if input and output directories exist.
-        If input does not exists it exits the process.
-        If output does not exists it tries to create it or exit with error.
+        If input does not exist it exits the process.
+        If output does not exist it tries to create it or exit with error.
         """
 
         if not os.path.exists(self.input_dir):
@@ -153,6 +154,7 @@ class Phockup():
 
         # Walk the directory
         for root, dirnames, files in os.walk(self.input_dir):
+            files.sort()
             self.files_found += len(files)
             filtered_dirs, excluded_count_by_pattern = filter_files(dirnames,
                                                                     self.excluded_patterns)
@@ -294,7 +296,7 @@ but looking for '{self.file_type}'"
                 logger.info(progress)
                 break
 
-            if self.skip_unknown and output.endswith(UNKNOWN):
+            if self.skip_unknown and output.endswith(self.no_date_dir):
                 # Skip files that didn't generate a path from EXIF data
                 progress = f"{progress} => skipped, unknown date EXIF information for '{target_file_name}'"
                 self.unknown_found += 1
@@ -380,7 +382,7 @@ but looking for '{self.file_type}'"
 
     def process_xmp(self, original_filename, file_name, suffix, output):
         """
-        Process xmp files. These are meta data for RAW images
+        Process xmp files. These are metadata for RAW images
         """
         xmp_original_with_ext = original_filename + '.xmp'
         xmp_original_without_ext = os.path.splitext(original_filename)[0] + '.xmp'

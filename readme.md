@@ -128,6 +128,94 @@ Example:
     YYYY/W     -> 2011/28
 ```
 
+### Prefix/Suffix
+In order to support both aggregation and finer granularity of files
+sorted, you can specify a prefix or suffix (or both) to aid in storing
+files in directories beyond strictly date.
+
+*NOTE:* Prefixes and suffixes will also apply to the **'unknown'** folder to
+isolate files that cannot be processed into their respective folders.
+This creates a bit more chaos for 'unknown' files, but should allow
+them to be managed by whomever they "belong" to.
+
+#### Prefix
+`--output-prefix` flag can be used to specify a directory to be
+appended to the `OUTPUTDIR`, and thus prepended to the date.
+
+For example:
+```
+phockup ~/Pictures/camera /mnt/sorted --output_prefix=nikon
+```
+would place files in folders similar to:
+```
+/mnt/sorted/nikon/2011/07/17
+/mnt/sorted/nikon/unknown
+```
+
+While it may seem to be redundant with `OUTPUTDIR`, this flag is
+intended to add support for more cleanly determining the output
+directory at run-time via environment variable expansion (i.e. use
+$USER, %USERNAME%, $HOSTNAME, etc. to aggregate files)
+
+For example:
+```
+phockup ~/Pictures/camera /mnt/sorted --output_prefix=$USER
+```
+
+would yield an output directory of
+```
+/mnt/sorted/ivandokov/2011/07/17
+/mnt/sorted/ivandokov/unknown
+```
+
+This allows the same script to be deployed to multiple users/machines
+and allows sorting into their respective top level directories.
+
+#### Suffix
+`--output-suffix` flag can be used to specify a directory within the
+target date directory for a file.  This allows files to be sorted in
+their respective date/time folders while additionally adding a
+directory based on the suffix value for additional metadata.
+
+For example:
+```
+phockup ~/Pictures/DCIM/NIKOND40 /mnt/sorted --output_suffix=nikon
+phockup ~/Pictures/DCIM/100APPLE /mnt/sorted --output_suffix=iphone
+```
+
+This would allow files to be stored in the following structure:
+
+```
+/mnt/sorted/2011/07/17/nikon/DCS_0001.NEF
+...
+/mnt/sorted/2011/07/17/nikon/DCS_0099.NEF
+/mnt/sorted/unknown/nikon/
+
+/mnt/sorted/2011/07/17/iphone/ABIL6163.HEIC
+...
+/mnt/sorted/2011/07/17/iphone/YZYE9497.HEIC
+/mnt/sorted/unknown/iphone/
+```
+
+The output suffix also allows for environment variable expansion (e.g.
+$USER, $HOSTNAME, %USERNAME%, etc.) allowing dynamic folders to
+represent additional metadata about the images.
+
+For example:
+
+```
+phockup ~/Pictures/ /mnt/sorted --output_suffix=$HOSTNAME
+
+or
+
+phockup ~/Pictures/ /mnt/sorted --output_suffix=$USER
+```
+could be used to sort images based on the source computer or user,
+perventing hetrogenous collections of images from disparate sources
+saving to the same central respository.
+
+The two options above can be used to help sort/store images
+
 ### Missing date information in EXIF
 If any of the photos does not have date information you can use the `-r | --regex` option to specify date format for date extraction from filenames:
 ```
@@ -182,6 +270,33 @@ If you want phockup to run with a progressbar (displaying only the progress and 
 ### Limit directory traversal depth
 If you would like to limit how deep the directories are traversed, you can use the `--maxdepth` option to specify the maximum number of levels below the input directory to process.  In order to process only the input directory, you can disable sub-directory processing with:
 `--maxdepth=0`  The current implementation is limited to a maximum depth of 255.
+
+### Improving throughput with concurrency
+If you want to allocate additional CPUs/cores to the image processing
+operations, you can specify additional resources via the
+`--max-concurrency` flag. Specifying `--max-concurrency=n`, where `n`
+represents the maximum number of operations to attempt
+concurrently, will leverage the additional CPU resources to start
+additional file operations while waiting for file I/O.  This can lead
+to significant increases in file processing throughput.
+
+Due to how concurrency is implemented in Phockup (specifically
+`ThreadPoolExecutor`), this option has the greatest impact on
+directories with a large numbers of files in them,
+versus many directories with small numbers of files in each.  As a
+general rule, the concurrency _should not_ be set higher than the
+core-count of the system processing the images.
+
+`--max-concurrency=1` has the default behavior of no concurrency while
+processing the files in the directories.  Beginning with 50% of the
+cores available is a good start.  Larger numbers can have
+diminishing returns as the number of concurrent operations saturate
+the file I/O of the system.
+
+Concurrently processing files does have an impact on the order that
+messages are written to the console/log and the ability to quickly
+terminate the program, as the execution waits for all in-flight
+operations to complete before shutting down.
 
 ## Development
 
