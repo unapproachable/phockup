@@ -298,7 +298,10 @@ but looking for '{self.file_type}'"
 
             if self.skip_unknown and output.endswith(self.no_date_dir):
                 # Skip files that didn't generate a path from EXIF data
-                progress = f"{progress} => skipped, unknown date EXIF information for '{target_file_name}'"
+                if target_file_type:
+                    progress = f"{progress} => skipped, unknown date EXIF information for '{target_file_name}'"
+                else:
+                    progress = f"{progress} => skipped, unsupported MIME type information for '{target_file_name}'"
                 self.unknown_found += 1
                 if self.progress:
                     self.pbar.write(progress)

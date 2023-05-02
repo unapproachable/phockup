@@ -224,6 +224,54 @@ If any of the photos does not have date information you can use the `-r | --rege
 
 As a last resort, specify the `-t | --timestamp` option to use the file modification timestamp. This may not be accurate in all cases but can provide some kind of date if you'd rather it not go into the `unknown` folder.
 
+### Filtering/Excluding files and directories
+You can filter the files processed by Phockup by specifying the `--exclude` flag followed by
+specific file and directory names and/or wildcards.  Phockup will use Unix shell-style wildcards
+to match files and directories for exclusion (see [fnmatch](https://docs.python.org/3/library/fnmatch.html)).
+
+The pattern matching does not differentiate between a file and a directory, so all matching
+names will be excluded.  `--exclude IMG*` will exlude all files named 'IMG_*' as well as
+a directory named "IMG" or "IMG_FILES".
+
+For example, to exclude common files from processing:
+```
+phockup ~/Pictures/camera ~/Pictures/sorted --exclude .picassa ethumbs.db desktop.ini
+```
+
+To exclude a file pattern:
+```
+phockup ~/Pictures/camera ~/Pictures/sorted --exclude IMG_????.MOV
+```
+
+To exclude a directory:
+```
+phockup ~/Pictures/ ~/Pictures/sorted --exclude camera
+```
+
+If files are excluded, a report will be printed at the end of the processing to inform
+the user of how many files were filtered and by which patten.  This is helpful with the
+[Dry Run](###Dry run) flag to preview that the filtering is having the desired outcome.
+Additionally, the report will also call out file and directory counts to
+help identify the types that were excluded
+
+For example:
+```
+phockup -y ~/Pictures/ ~/Sorted --exclude IMG*
+```
+would yield something like
+```
+[WARNING] - Dry-run phockup (does a trial run with no permanent changes)...
+...
+[INFO] - Excluded 2 files from processing in ~/Pictures
+...
+[INFO] - Excluded 222 files from processing in ~/Pictures/camera
+[INFO] - Found 461 files in ~/Pictures
+[INFO] - Filtered out 2 directories via exclusion patterns.
+[INFO] -        IMG*            2
+[INFO] - Filtered out 446 files via exclusion patterns.
+[INFO] -        IMG*            446
+```
+
 ### Move files
 Instead of copying the process will move all files from the INPUTDIR to the OUTPUTDIR by using the flag `-m | --move`. This is useful when working with a big collection of files and the remaining free space is not enough to make a copy of the INPUTDIR.
 
