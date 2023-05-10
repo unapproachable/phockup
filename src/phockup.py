@@ -15,7 +15,6 @@ from src.date import Date
 from src.exif import Exif
 
 logger = logging.getLogger('phockup')
-ignored_files = ('.DS_Store', 'Thumbs.db')
 
 
 class Phockup:
@@ -49,8 +48,7 @@ class Phockup:
         self.output_prefix = args.get('output_prefix' or None)
         self.output_suffix = args.get('output_suffix' or '')
         self.no_date_dir = args.get('no_date_dir') or Phockup.DEFAULT_NO_DATE_DIRECTORY
-        self.dir_format = args.get('dir_format') or os.path.sep.join(
-            Phockup.DEFAULT_DIR_FORMAT)
+        self.dir_format = args.get('dir_format') or os.path.sep.join(Phockup.DEFAULT_DIR_FORMAT)
         self.move = args.get('move', False)
         self.link = args.get('link', False)
         self.original_filenames = args.get('original_filenames', False)
@@ -72,8 +70,7 @@ class Phockup:
         self.excluded_patterns = args.get('exclude') or self.DEFAULT_EXCLUDE_PATTERNS
 
         if self.dry_run:
-            logger.warning(
-                "Dry-run phockup (does a trial run with no permanent changes)...")
+            logger.warning("Dry-run phockup (does a trial run with no permanent changes)...")
 
         self.check_directories()
         # Get the number of files
@@ -137,14 +134,12 @@ class Phockup:
         if not os.path.isdir(self.input_dir):
             raise RuntimeError(f"Input directory '{self.input_dir}' is not a directory")
         if not os.path.exists(self.output_dir):
-            logger.warning(
-                f"Output directory '{self.output_dir}' does not exist, creating now")
+            logger.warning(f"Output directory '{self.output_dir}' does not exist, creating now")
             try:
                 if not self.dry_run:
                     os.makedirs(self.output_dir)
             except OSError:
-                raise OSError(
-                    f"Cannot create output '{self.output_dir}' directory. No write access!")
+                raise OSError(f"Cannot create output '{self.output_dir}' directory. No write access!")
 
     def walk_directory(self):
         """
@@ -155,24 +150,9 @@ class Phockup:
         # Walk the directory
         for root, dirnames, files in os.walk(self.input_dir):
             files.sort()
-            self.files_found += len(files)
-            filtered_dirs, excluded_count_by_pattern = filter_files(dirnames,
-                                                                    self.excluded_patterns)
-            self.directories_excluded += len(filtered_dirs)
-
-            for directory in filtered_dirs:
-                dirnames.remove(directory)
-            update_exclusion_counts(excluded_count_by_pattern,
-                                    self.dir_exclusion_count_by_pattern)
-            filtered_files, excluded_file_count, excluded_count_by_pattern = exclude_files(
-                files, self.excluded_patterns)
-            update_exclusion_counts(excluded_count_by_pattern,
-                                    self.file_exclusion_count_by_pattern)
-            self.files_excluded += excluded_file_count
-            if excluded_file_count:
-                logger.info(
-                    f"Excluded {excluded_file_count} file{'s' if excluded_file_count > 1 else ''} from processing in {root}")
             file_paths_to_process = []
+            self.files_found += len(files)
+            filtered_files = self.filter_excluded(dirnames, files, root)
             for filename in filtered_files:
                 file_paths_to_process.append(os.path.join(root, filename))
             if self.max_concurrency > 1:
@@ -187,6 +167,24 @@ class Phockup:
                     return
             if root.count(os.sep) >= self.stop_depth:
                 del dirnames[:]
+
+    def filter_excluded(self, dirnames, files, root):
+        filtered_dirs, excluded_count_by_pattern = filter_files(dirnames,
+                                                                self.excluded_patterns)
+        self.directories_excluded += len(filtered_dirs)
+        for directory in filtered_dirs:
+            dirnames.remove(directory)
+        update_exclusion_counts(excluded_count_by_pattern,
+                                self.dir_exclusion_count_by_pattern)
+        filtered_files, excluded_file_count, excluded_count_by_pattern = exclude_files(
+            files, self.excluded_patterns)
+        update_exclusion_counts(excluded_count_by_pattern,
+                                self.file_exclusion_count_by_pattern)
+        self.files_excluded += excluded_file_count
+        if excluded_file_count:
+            logger.info(
+                f"Excluded {excluded_file_count} file{'s' if excluded_file_count > 1 else ''} from processing in {root}")
+        return filtered_files
 
     def get_file_count(self):
         file_count = 0
@@ -219,11 +217,18 @@ class Phockup:
         directory unless user included a regex from filename or uses timestamp.
         """
         try:
-            path = [self.output_dir, date['date'].date().strftime(self.dir_format)]
+            path = [self.output_dir,
+                    self.output_prefix,
+                    date['date'].date().strftime(self.dir_format),
+                    self.output_suffix]
         except (TypeError, ValueError):
-            path = [self.output_dir, self.no_date_dir]
-
-        fullpath = os.path.sep.join(path)
+            path = [self.output_dir,
+                    self.output_prefix,
+                    self.no_date_dir,
+                    self.output_suffix]
+        # Remove any None values that made it in the path
+        path = [p for p in path if p is not None]
+        fullpath = os.path.normpath(os.path.sep.join(path))
 
         if not os.path.isdir(fullpath) and not self.dry_run:
             os.makedirs(fullpath, exist_ok=True)
@@ -240,13 +245,13 @@ class Phockup:
 
         try:
             filename = [
-                f'{(date["date"].year):04d}',
-                f'{(date["date"].month):02d}',
-                f'{(date["date"].day):02d}',
+                f'{date["date"].year :04d}',
+                f'{date["date"].month :02d}',
+                f'{date["date"].day :02d}',
                 '-',
-                f'{(date["date"].hour):02d}',
-                f'{(date["date"].minute):02d}',
-                f'{(date["date"].second):02d}',
+                f'{date["date"].hour :02d}',
+                f'{date["date"].minute :02d}',
+                f'{date["date"].second :02d}',
             ]
 
             if date['subseconds']:
@@ -268,7 +273,7 @@ class Phockup:
                     pass
             except KeyboardInterrupt:
                 logger.warning(
-                    f"Received interrupt. Shutting down {self.max_concurrency} workers...")
+                        f"Received interrupt. Shutting down {self.max_concurrency} workers...")
                 executor.shutdown(wait=True)
                 return False
         return True
@@ -283,8 +288,7 @@ class Phockup:
 
         progress = f'{filename}'
 
-        output, target_file_name, target_file_path, target_file_type = self.get_file_name_and_path(
-            filename)
+        output, target_file_name, target_file_path, target_file_type = self.get_file_name_and_path(filename)
         suffix = 1
         target_file = target_file_path
 
@@ -309,8 +313,7 @@ but looking for '{self.file_type}'"
                 break
 
             if os.path.isfile(target_file):
-                if filename != target_file and filecmp.cmp(filename, target_file,
-                                                           shallow=False):
+                if filename != target_file and filecmp.cmp(filename, target_file, shallow=False):
                     progress = f'{progress} => skipped, duplicated file {target_file}'
                     self.duplicates_found += 1
                     if self.progress:
@@ -412,8 +415,6 @@ but looking for '{self.file_type}'"
                     os.link(original, xmp_path)
                 else:
                     shutil.copy2(original, xmp_path)
-
-    # Utility mechanism for tracking how many files were excluded by each pattern
 
 
 def filter_files(files, filter_patterns):
